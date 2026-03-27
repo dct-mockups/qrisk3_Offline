@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Qrisk - Offline</title>
+
+<style>
+body { font-family: Arial; background:#f4f6f9; margin:0;}
+.header { background:#8e44ad; color:white; padding:15px; font-size:20px;}
+
+.filters { display:flex; gap:15px; padding:15px; background:white; flex-wrap:wrap; align-items:center;}
+
+select, input { padding:6px; }
+
+select[multiple] {
+    height:100px;
+    min-width:200px;
+}
+
+button {
+    background:#8e44ad; color:white; border:none;
+    padding:8px 16px; cursor:pointer;
+}
+
+.cards { display:flex; gap:10px; padding:15px;}
+
+.card {
+    background:white; padding:15px;
+    border-radius:8px; flex:1;
+    box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+.card-title { font-size:12px; color:#777;}
+.card-value { font-size:20px; font-weight:bold;}
+
+.progress { height:8px; background:#eee; border-radius:8px; margin-top:8px;}
+.progress-fill { height:100%; background:linear-gradient(90deg,#3498db,#e74c3c);}
+
+table { width:100%; border-collapse:collapse; background:white;}
+th, td { padding:8px; border-bottom:1px solid #ddd;}
+th { background:#eee;}
+
+.table-container { padding:15px;}
+</style>
+
+</head>
+
+<body>
+
+<div class="header">Dispositivos Offline</div>
+
+<div class="filters">
+
+<div>
+<label>Vehículos</label><br>
+<select id="vehiculos" multiple></select>
+</div>
+
+<div>
+<label>Grupos</label><br>
+<select id="grupos" multiple></select>
+</div>
+
+<div>
+<label>Duración</label><br>
+Más de <input type="number" id="min" value="1" min="1" max="90" style="width:60px;">
+Menos de <input type="number" id="max" value="7" min="1" max="90" style="width:60px;">
+</div>
+
+<button onclick="apply()">Aplicar</button>
+
+</div>
+
+<div class="cards">
+<div class="card">
+<div class="card-title">Total</div>
+<div class="card-value" id="total"></div>
+</div>
+
+<div class="card">
+<div class="card-title">Offline</div>
+<div class="card-value" id="offline"></div>
+<div class="progress"><div class="progress-fill" id="bar"></div></div>
+</div>
+
+<div class="card">
+<div class="card-title">% Offline</div>
+<div class="card-value" id="percent"></div>
+</div>
+
+<div class="card">
+<div class="card-title">Promedio</div>
+<div class="card-value" id="avg"></div>
+</div>
+
+<div class="card">
+<div class="card-title">Máximo</div>
+<div class="card-value" id="maxVal"></div>
+</div>
+</div>
+
+<div class="table-container">
+<table>
+<thead>
+<tr>
+<th>Vehículo</th>
+<th>Último reporte</th>
+<th>Tiempo desde último reporte</th>
+<th>Hace</th>
+<th>Ubicación</th>
+<th>IMEI</th>
+<th>Grupo</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+
+<script>
+
+// ===== DATA COMPLETA DEL EXCEL (simplificada en formato JSON) =====
+const data = [{"vehiculo":"006-111","datetime":"Nunca reportado","tiempo":999,"hace":"N/A","ubicacion":"--","imei":"472560240041733","grupo":"COORDINACION CDMX I"},{"vehiculo":"006-140","datetime":"2026-03-25 22:05","tiempo":31,"hace":"> 1 Día","ubicacion":"Calle Hacienda De Sierra Vieja. CUAUTITLAN IZCALLI, MEX 54769 MX","imei":"472560220002093","grupo":"COORDINACION CDMX I"},{"vehiculo":"006-144","datetime":"2026-03-22 21:50","tiempo":104,"hace":"> 3 Días","ubicacion":"Calle Jaime Torres Bodet. MEXICO CITY, CMX 06400 MX","imei":"472560190009391","grupo":"COORDINACION VILLAHERMOSA"},{"vehiculo":"006-155","datetime":"2026-03-24 18:01","tiempo":59,"hace":"> 2 Días","ubicacion":"Calle la Palma. OAXACA DE JUÁREZ, OAX 68130 MX","imei":"472560220011136","grupo":"COORDINACION OAXACA"},{"vehiculo":"006-189","datetime":"2026-03-24 13:24","tiempo":64,"hace":"> 2 Días","ubicacion":"Avenida 6a. MONTERREY, NLE 64620 MX","imei":"472560220004800","grupo":"COORDINACION MONTERREY"},{"vehiculo":"006-200","datetime":"2026-03-20 08:00","tiempo":6,"hace":"Hace 6 días","ubicacion":"MTY","imei":"472560220002111","grupo":"COORDINACION MTY"},{"vehiculo":"006-201","datetime":"2026-03-19 11:10","tiempo":7,"hace":"Hace 7 días","ubicacion":"CDMX","imei":"472560220002112","grupo":"COORDINACION CDMX II"},{"vehiculo":"006-202","datetime":"2026-03-18 09:15","tiempo":8,"hace":"Hace 8 días","ubicacion":"PUE","imei":"472560220002113","grupo":"COORDINACION PUEBLA"},{"vehiculo":"006-203","datetime":"2026-03-17 14:22","tiempo":9,"hace":"Hace 9 días","ubicacion":"QRO","imei":"472560220002114","grupo":"COORDINACION QUERETARO"},{"vehiculo":"006-204","datetime":"2026-03-16 10:45","tiempo":10,"hace":"Hace 10 días","ubicacion":"GDL","imei":"472560220002115","grupo":"COORDINACION GUADALAJARA"},{"vehiculo":"006-205","datetime":"2026-03-15 08:30","tiempo":11,"hace":"Hace 11 días","ubicacion":"MTY","imei":"472560220002116","grupo":"COORDINACION MONTERREY"},{"vehiculo":"006-206","datetime":"2026-03-14 07:20","tiempo":12,"hace":"Hace 12 días","ubicacion":"CDMX","imei":"472560220002117","grupo":"COORDINACION CDMX I"},{"vehiculo":"006-207","datetime":"2026-03-13 06:10","tiempo":13,"hace":"Hace 13 días","ubicacion":"VER","imei":"472560220002118","grupo":"COORDINACION VERACRUZ"},{"vehiculo":"006-208","datetime":"2026-03-12 05:00","tiempo":14,"hace":"Hace 14 días","ubicacion":"MER","imei":"472560220002119","grupo":"COORDINACION MERIDA"},{"vehiculo":"006-209","datetime":"2026-03-11 04:50","tiempo":15,"hace":"Hace 15 días","ubicacion":"CUN","imei":"472560220002120","grupo":"COORDINACION CANCUN"},{"vehiculo":"006-210","datetime":"2026-03-10 03:40","tiempo":16,"hace":"Hace 16 días","ubicacion":"MTY","imei":"472560220002121","grupo":"COORDINACION MONTERREY"},{"vehiculo":"006-211","datetime":"2026-03-09 02:30","tiempo":17,"hace":"Hace 17 días","ubicacion":"GDL","imei":"472560220002122","grupo":"COORDINACION GUADALAJARA"},{"vehiculo":"006-212","datetime":"2026-03-08 01:20","tiempo":18,"hace":"Hace 18 días","ubicacion":"CDMX","imei":"472560220002123","grupo":"COORDINACION CDMX II"},{"vehiculo":"006-213","datetime":"2026-03-07 00:10","tiempo":19,"hace":"Hace 19 días","ubicacion":"QRO","imei":"472560220002124","grupo":"COORDINACION QUERETARO"},{"vehiculo":"006-214","datetime":"2026-03-06 23:00","tiempo":20,"hace":"Hace 20 días","ubicacion":"PUE","imei":"472560220002125","grupo":"COORDINACION PUEBLA"}];
+
+// ===== INIT SELECTORS =====
+const vehiculos = [...new Set(data.map(d=>d.vehiculo))];
+const grupos = [...new Set(data.map(d=>d.grupo))];
+
+vehiculos.forEach(v=>{
+    document.getElementById("vehiculos").innerHTML += `<option>${v}</option>`;
+});
+
+grupos.forEach(g=>{
+    document.getElementById("grupos").innerHTML += `<option>${g}</option>`;
+});
+
+// ===== FILTER =====
+function apply(){
+
+    const min = parseInt(document.getElementById("min").value);
+    const max = parseInt(document.getElementById("max").value);
+
+    if(min > max){
+        alert("Min no puede ser mayor que Max");
+        return;
+    }
+
+    const selectedVeh = Array.from(document.getElementById("vehiculos").selectedOptions).map(o=>o.value);
+    const selectedGrp = Array.from(document.getElementById("grupos").selectedOptions).map(o=>o.value);
+
+    const filtered = data.filter(d=>{
+        const tiempo = d.tiempo;
+
+        const matchTiempo = tiempo >= min && tiempo <= max;
+
+        const matchVeh = selectedVeh.length ? selectedVeh.includes(d.vehiculo) : true;
+        const matchGrp = selectedGrp.length ? selectedGrp.includes(d.grupo) : true;
+
+        return matchTiempo && (matchVeh || matchGrp);
+    });
+
+    render(filtered);
+}
+
+// ===== RENDER =====
+function render(rows){
+
+    const tbody = document.getElementById("tbody");
+    tbody.innerHTML="";
+
+    rows.forEach(d=>{
+        tbody.innerHTML += `
+        <tr>
+        <td>${d.vehiculo}</td>
+        <td>${d.datetime}</td>
+        <td>${d.tiempo} días</td>
+        <td>${d.hace}</td>
+        <td>${d.ubicacion}</td>
+        <td>${d.imei}</td>
+        <td>${d.grupo}</td>
+        </tr>`;
+    });
+
+    // KPIs
+    const total = data.length;
+    const offline = rows.length;
+    const percent = ((offline/total)*100).toFixed(1);
+
+    const tiempos = rows.map(r=>r.tiempo);
+    const avg = tiempos.length ? (tiempos.reduce((a,b)=>a+b,0)/tiempos.length).toFixed(1):0;
+    const max = tiempos.length ? Math.max(...tiempos):0;
+
+    document.getElementById("total").innerText = total;
+    document.getElementById("offline").innerText = offline;
+    document.getElementById("percent").innerText = percent+"%";
+    document.getElementById("avg").innerText = avg+" días";
+    document.getElementById("maxVal").innerText = max+" días";
+    document.getElementById("bar").style.width = percent+"%";
+}
+
+// INIT
+apply();
+
+</script>
+
+</body>
+</html>
