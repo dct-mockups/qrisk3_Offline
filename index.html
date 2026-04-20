@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Qrisk Fase 3 - Dispositivos Offline</title>
+<style>
+  :root{
+    --bg:#2e2e2e;--bg2:#353535;--surface:#3d3d3d;--surface2:#1f1f1f;--line:#4a4a4a;--text:#efefef;--muted:#bcbcbc;
+    --purple:#9b59b6;--green:#69b96a;--yellow:#efe04f;--orange:#f9aa33;--red:#ef5350;--blue:#2a84da;
+    --chip:#4a4a4a;--tableHead:#050505;--lightBg:#f4f4f4;--lightText:#2f2f2f;--lightSurface:#ffffff;--lightLine:#d8d8d8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);transition:.25s}
+  body.light{background:#ececec;color:var(--lightText)}
+  .topbar{height:60px;background:var(--purple);display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-shadow:0 2px 12px rgba(0,0,0,.35)}
+  .topbar .left{display:flex;align-items:center;gap:14px;font-size:16px}
+  .top-actions{display:flex;gap:14px;align-items:center}
+  .top-actions .toggleTheme{cursor:pointer}
+  .page{display:flex;min-height:calc(100vh - 60px)}
+  .sidebar{width:54px;background:#272727;border-right:1px solid #404040;display:flex;flex-direction:column;align-items:center;padding-top:10px;gap:18px;transition:.25s}
+  .sideicon{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:#d68ff7;font-size:18px}
+  .content{flex:1;padding:18px 14px 22px}
+  .filters{display:grid;grid-template-columns:1fr 1fr 280px auto;gap:18px;align-items:center;margin-bottom:22px}
+  .filterbox{border-bottom:1px solid #6e6e6e;padding:10px 8px;color:#ddd;display:flex;align-items:center;gap:10px;min-height:44px;position:relative}
+  .filterbox input,.filterbox select{background:transparent;border:none;outline:none;color:inherit;width:100%;font-size:15px}
+  .filterbox .count{position:absolute;right:26px;top:-2px;color:#b95adb;font-size:13px}
+  .filterbox .clear{position:absolute;right:0;top:7px;color:#ddd;background:#555;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:14px}
+  .apply{color:#d37eff;font-weight:bold;padding:10px 12px;text-transform:uppercase;cursor:pointer}
+  .label{font-size:12px;color:#cfcfcf;letter-spacing:.02em}
+
+  .cards{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;margin-bottom:20px}
+  .card{border-radius:8px;overflow:visible;background:var(--surface);box-shadow:0 3px 8px rgba(0,0,0,.25);position:relative}
+  .card .head{padding:11px 12px 8px;font-weight:bold;text-transform:uppercase;font-size:12px;letter-spacing:.04em;color:#111;text-align:center;min-height:52px;display:flex;align-items:center;justify-content:center;gap:8px;border-top-left-radius:8px;border-top-right-radius:8px}
+  .card .body{padding:14px 14px 12px;background:rgba(0,0,0,.18);min-height:96px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;border-bottom-left-radius:8px;border-bottom-right-radius:8px}
+  .card .big{font-size:26px;font-weight:bold}
+  .card .sub{font-size:13px;color:#d8d8d8;text-align:center}
+  .fill{height:8px;width:80%;border-radius:12px;background:rgba(255,255,255,.15);overflow:hidden;margin-top:4px}
+  .fill span{display:block;height:100%;background:linear-gradient(90deg,rgba(255,255,255,.9),rgba(255,255,255,.35));border-radius:12px}
+  .blue .head{background:var(--blue)} .yellow .head{background:var(--yellow)} .orange .head{background:var(--orange)} .red .head{background:var(--red)}
+
+  .info{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:2px solid rgba(255,255,255,.85);border-radius:50%;font-size:11px;color:#fff;cursor:help;position:relative;flex:0 0 auto}
+  .info.dark{border-color:rgba(0,0,0,.55);color:#111}
+  .tip{position:absolute;left:50%;transform:translateX(-50%);bottom:28px;width:230px;background:#111;color:#fff;padding:10px 12px;border-radius:8px;font-size:12px;line-height:1.35;text-transform:none;letter-spacing:0;display:none;z-index:20;box-shadow:0 8px 20px rgba(0,0,0,.35)}
+  .tip:after{content:'';position:absolute;left:50%;transform:translateX(-50%);bottom:-8px;border:8px solid transparent;border-top-color:#111}
+  .info:hover .tip,.tabInfo:hover .tip{display:block}
+
+  .tabs{display:flex;gap:22px;border-bottom:1px solid #535353;margin-top:6px}
+  .tab{padding:14px 12px 12px;color:#cfcfcf;cursor:pointer;border-bottom:3px solid transparent;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .tab.active{color:#c8f542;border-color:#c8f542;font-weight:bold}
+  .tabInfo{position:relative;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:2px solid #c8f542;border-radius:50%;font-size:11px;color:#c8f542;cursor:help}
+  .panel{display:none}.panel.active{display:block}
+
+  .tableWrap{margin-top:10px;background:#3c3c3c;border:1px solid #4f4f4f}
+  .tableTop{display:flex;align-items:center;justify-content:space-between;background:#f6f6f6;color:#444;padding:16px 18px}
+  .tableTop .search{font-size:18px;color:#8a8a8a}
+  table{width:100%;border-collapse:collapse}
+  thead th{background:var(--tableHead);color:#f2f2f2;font-weight:bold;text-align:left;padding:15px 14px;font-size:14px}
+  tbody td{padding:14px;border-bottom:1px solid #4c4c4c;color:#d6d6d6;font-size:14px}
+  tbody tr:hover{background:#444;cursor:pointer}
+  .sevDot{display:inline-block;width:14px;height:14px;border-radius:50%;margin-right:8px;vertical-align:middle}
+  .sevCrit{background:linear-gradient(#ff766d,#bc1d15)} .sevGra{background:linear-gradient(#ffc86b,#b76c10)} .sevMod{background:linear-gradient(#fff396,#d6b511)}
+  .sevTxt{display:flex;align-items:center;white-space:nowrap}
+
+  .pager{display:flex;justify-content:flex-end;gap:8px;padding:12px 14px;color:#ddd;background:#2f2f2f}
+  .pager button{background:#4a4a4a;color:#fff;border:0;padding:8px 10px;border-radius:4px;cursor:pointer}
+  .pager button.active{background:var(--purple)}
+
+  .heatmapPane{padding-top:14px}
+  .heatmapBox{position:relative;height:620px;background:#0d0d0d;border:1px solid #454545;overflow:hidden}
+  .heatmapHeader{position:absolute;top:0;left:0;right:0;height:48px;background:var(--purple);display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:16px;z-index:2}
+  .heatmapSearch{position:absolute;top:76px;right:18px;background:#343434;color:#ddd;padding:12px 18px;width:252px;display:flex;justify-content:space-between;z-index:2}
+  .mapLabel{position:absolute;font-size:12px;color:#7f7f7f;letter-spacing:.03em;opacity:.8}
+  .hot{position:absolute;border-radius:50%;filter:blur(3px);opacity:.88}
+  .heatControls{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);display:flex;gap:16px;z-index:2}
+  .heatControls button{border:none;border-radius:8px;padding:12px 18px;font-size:15px;cursor:pointer}
+  .heatControls .m{background:#f2e28f} .heatControls .g{background:#f5c781} .heatControls .c{background:#e9a095}
+
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;padding:28px;z-index:30}
+  .modal.active{display:flex}
+  .modalCard{background:#242424;width:min(1400px,96vw);height:min(820px,94vh);padding:18px 18px 8px;position:relative;overflow:auto;color:#efefef}
+  .modalCard.lightMode{background:#f4f4f4;color:#333}
+  .close{position:absolute;top:12px;right:14px;font-size:28px;color:#fff;cursor:pointer;z-index:2}
+  .modalCard.lightMode .close{color:#555}
+  .detailGrid{display:grid;grid-template-columns:420px 1fr 260px;gap:24px;align-items:start;margin-top:8px}
+  .metaList div{margin:10px 0;color:inherit}
+  .metaList a{color:#78d5ff}
+  .severityDist{margin-top:12px}
+  .bar{height:12px;border-radius:999px;overflow:hidden;background:#666;display:flex;width:100%;max-width:460px;border:1px solid #868686}
+  .bar span:nth-child(1){background:var(--red)} .bar span:nth-child(2){background:var(--orange)} .bar span:nth-child(3){background:var(--yellow)}
+  .legend{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+  .legend .box{padding:8px 12px;font-size:13px;color:#111;font-weight:bold}
+  .legend .c1{background:var(--red)} .legend .c2{background:var(--orange)} .legend .c3{background:var(--yellow)}
+  .detailSearch{border-bottom:1px solid #666;padding:8px 0;color:#bbb}
+  .miniTable th,.miniTable td{padding:12px 10px;border-bottom:1px solid #343434}
+  .miniTable thead th{background:transparent;color:inherit;padding-top:22px}
+  .muted{color:#b5b5b5}
+  .link{color:#78d5ff;text-decoration:underline;cursor:pointer}
+
+  .chartTitle{font-size:18px;color:inherit;margin-bottom:18px;font-weight:bold}
+  .fakeChart{height:470px;background:linear-gradient(#fff,#fafafa);border:1px solid #ddd;position:relative;padding:18px 18px 30px;color:#333}
+  .fakeChart.dark{background:linear-gradient(#202020,#1b1b1b);border-color:#4f4f4f;color:#d7d7d7}
+  .gridline{position:absolute;left:70px;right:22px;height:1px;background:#e0e0e0}
+  .fakeChart.dark .gridline{background:#4b4b4b}
+  .axisLeft{position:absolute;left:18px;color:inherit;font-size:12px}
+  .axisBottom{position:absolute;bottom:8px;font-size:11px;color:inherit;transform:translateX(-50%)}
+  .stateLine{position:absolute;left:72px;right:24px;top:48px;bottom:58px}
+  .stateLine svg{width:100%;height:100%}
+  .labelOnline,.labelOffline{position:absolute;left:12px;font-size:12px;font-weight:bold}
+  .labelOnline{top:48px}.labelOffline{bottom:58px}
+  .miniBrush{height:92px;margin-top:12px;background:#f1f1f1;border:1px solid #ddd;position:relative}
+  .miniBrush.dark{background:#222;border-color:#4f4f4f}
+  .brush1,.brush2{position:absolute;left:14px;right:14px;top:12px;bottom:12px}
+  .brush1{background:linear-gradient(to top,rgba(42,132,218,.18),rgba(42,132,218,.5));clip-path:polygon(0 82%,10% 82%,10% 28%,24% 28%,24% 82%,35% 82%,35% 50%,48% 50%,48% 82%,62% 82%,62% 20%,78% 20%,78% 82%,90% 82%,90% 54%,100% 54%,100% 100%,0 100%)}
+  .brush2{background:linear-gradient(to top,rgba(239,83,80,.12),rgba(239,83,80,.32));clip-path:polygon(0 82%,10% 82%,10% 28%,24% 28%,24% 82%,35% 82%,35% 50%,48% 50%,48% 82%,62% 82%,62% 20%,78% 20%,78% 82%,90% 82%,90% 54%,100% 54%,100% 100%,0 100%)}
+
+  body.light .sidebar{background:#fafafa;border-right-color:#ddd}
+  body.light .filterbox{color:#555;border-bottom-color:#bbb}
+  body.light .label{color:#666}
+  body.light .card{background:#fff}
+  body.light .card .body{background:#f6f6f6}
+  body.light .card .sub{color:#555}
+  body.light .tabs{border-bottom-color:#cfcfcf}
+  body.light .tableWrap{background:#fff;border-color:#ddd}
+  body.light thead th{background:#171717}
+  body.light tbody td{color:#444;border-bottom-color:#e7e7e7}
+  body.light tbody tr:hover{background:#f4f4f4}
+  body.light .pager{background:#f8f8f8;color:#444}
+  body.light .pager button{background:#ddd;color:#222}
+  body.light .heatmapHeader{box-shadow:0 2px 8px rgba(0,0,0,.18)}
+
+  @media (max-width: 1600px){ .cards{grid-template-columns:repeat(4,1fr)} }
+  @media (max-width: 1380px){ .filters{grid-template-columns:1fr 1fr 1fr auto}.detailGrid{grid-template-columns:1fr}.cards{grid-template-columns:repeat(3,1fr)} }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="left"><span style="font-size:28px">☰</span><span>Panel De Riesgo</span></div>
+    <div class="top-actions"><span>🎧</span><span class="toggleTheme" id="themeToggle" title="Cambiar claro/oscuro">🔔</span></div>
+  </div>
+  <div class="page">
+    <aside class="sidebar">
+      <div class="sideicon">🛰</div>
+      <div class="sideicon">🧭</div>
+    </aside>
+    <main class="content">
+      <section class="filters">
+        <div class="filterbox"><span>🔍</span><div style="width:100%"><div class="label">Grupos</div><select><option>Buscar 3161 grupos ...</option><option>COORDINACION MONTERREY</option><option>COORDINACION CDMX I</option><option>COORDINACION OAXACA</option><option>COORDINACION TRAMO CENTRO</option></select></div><span class="count">4</span><span class="clear">×</span></div>
+        <div class="filterbox"><span>🔍</span><div style="width:100%"><div class="label">Vehículos</div><select><option>Buscar 9110 vehículos ...</option><option>TMO-405</option><option>TMO-363</option><option>006-140</option><option>006-155</option></select></div><span class="count">231</span><span class="clear">×</span></div>
+        <div class="filterbox"><span>🕒</span><div style="width:100%"><div class="label">Rango de fechas</div><input value="Abril 6 - 14, 2026" /></div></div>
+        <div class="apply">Aplicar</div>
+      </section>
+
+      <section class="cards">
+        <div class="card blue">
+          <div class="head">Vehículos Offline <span class="info"><span class="tip">Cantidad total de vehículos con al menos un evento offline mayor a 1 hora en el periodo seleccionado.</span>i</span></div>
+          <div class="body"><div class="big">85 / 231</div><div class="sub">36.8 % de la flota</div><div class="fill"><span style="width:36.8%"></span></div></div>
+        </div>
+        <div class="card red">
+          <div class="head">Offline Ahora Crítico <span class="info dark"><span class="tip">Vehículos que siguen offline al momento de la consulta y cuyo bloque continuo actual supera 2 días.</span>i</span></div>
+          <div class="body"><div class="big">9</div><div class="sub">10.6 % de vehículos offline</div><div class="fill"><span style="width:10.6%"></span></div></div>
+        </div>
+        <div class="card orange">
+          <div class="head">Offline Ahora Grave <span class="info dark"><span class="tip">Vehículos que siguen offline al momento de la consulta y cuyo bloque continuo actual supera 24 horas.</span>i</span></div>
+          <div class="body"><div class="big">14</div><div class="sub">16.5 % de vehículos offline</div><div class="fill"><span style="width:16.5%"></span></div></div>
+        </div>
+        <div class="card yellow">
+          <div class="head">Offline Ahora Moderado <span class="info dark"><span class="tip">Vehículos que siguen offline al momento de la consulta y cuyo bloque continuo actual supera 12 horas.</span>i</span></div>
+          <div class="body"><div class="big">18</div><div class="sub">21.2 % de vehículos offline</div><div class="fill"><span style="width:21.2%"></span></div></div>
+        </div>
+        <div class="card red">
+          <div class="head">Intermitente Crítico <span class="info dark"><span class="tip">Vehículos que no están offline ahora, pero que acumularon más de 2 días offline en el periodo.</span>i</span></div>
+          <div class="body"><div class="big">8</div><div class="sub">9.4 % de vehículos offline</div><div class="fill"><span style="width:9.4%"></span></div></div>
+        </div>
+        <div class="card orange">
+          <div class="head">Intermitente Grave <span class="info dark"><span class="tip">Vehículos que no están offline ahora, pero que acumularon más de 24 horas offline en el periodo.</span>i</span></div>
+          <div class="body"><div class="big">16</div><div class="sub">18.8 % de vehículos offline</div><div class="fill"><span style="width:18.8%"></span></div></div>
+        </div>
+        <div class="card yellow">
+          <div class="head">Intermitente Moderado <span class="info dark"><span class="tip">Vehículos que no están offline ahora, pero que acumularon más de 12 horas offline en el periodo.</span>i</span></div>
+          <div class="body"><div class="big">20</div><div class="sub">23.5 % de vehículos offline</div><div class="fill"><span style="width:23.5%"></span></div></div>
+        </div>
+      </section>
+
+      <nav class="tabs">
+        <div class="tab active" data-tab="ahora">OFFLINE AHORA <span class="tabInfo">i<span class="tip">Primero se muestran los vehículos que siguen offline en este momento, ordenados por mayor bloque continuo actual y severidad.</span></span></div>
+        <div class="tab" data-tab="intermitentes">INTERMITENTES <span class="tabInfo">i<span class="tip">Aquí se muestran vehículos que no están offline ahora, pero sí acumularon tiempos offline significativos dentro del periodo.</span></span></div>
+        <div class="tab" data-tab="nunca">NUNCA REPORTADO</div>
+        <div class="tab" data-tab="heatmap">MAPA DE EVENTOS OFFLINE</div>
+      </nav>
+        <div class="tab active" data-tab="listado">OFFLINE INCIDENTS <span class="tabInfo">i<span class="tip">La severidad pondera principalmente el tiempo offline continuo, luego el tiempo offline acumulado dentro del rango y finalmente la recurrencia de eventos intermitentes mayores a 1 hora.</span></span></div>
+        <div class="tab" data-tab="heatmap">HEATMAP</div>
+      </nav>
+
+      <section id="ahora" class="panel active">
+        <div class="tableWrap">
+          <div class="tableTop">
+            <div class="search">🔎 Buscar en 41 vehículos offline ahora...</div>
+            <div style="display:flex;gap:18px;align-items:center"><span>Filtro duración: más de 12 h y menos de 7 días</span><span>⤓ &nbsp; ↻</span></div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Severidad</th>
+                <th>Vehículo</th>
+                <th>Grupo</th>
+                <th>Offline ahora</th>
+                <th>Bloque continuo actual</th>
+                <th>Tiempo offline acumulado</th>
+                <th>Categoría principal</th>
+                <th>Último inicio offline</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="vehicle-row">
+                <td><span class="sevTxt"><span class="sevDot sevCrit"></span>Crítico</span></td>
+                <td>TMO-405 - 3HSDZAPT9SN508692</td>
+                <td>TRAMO DEL CENTRO, S.A. DE C.V.</td>
+                <td>Sí</td>
+                <td>58 h</td>
+                <td>91 h</td>
+                <td>Offline Ahora Crítico</td>
+                <td>2026-04-12 08:09</td>
+              </tr>
+              <tr class="vehicle-row">
+                <td><span class="sevTxt"><span class="sevDot sevCrit"></span>Crítico</span></td>
+                <td>TMO-363 - 3HSDZAPT1RN717564</td>
+                <td>TRAMO DEL CENTRO, S.A. DE C.V.</td>
+                <td>Sí</td>
+                <td>51 h</td>
+                <td>78 h</td>
+                <td>Offline Ahora Crítico</td>
+                <td>2026-04-12 14:20</td>
+              </tr>
+              <tr class="vehicle-row">
+                <td><span class="sevTxt"><span class="sevDot sevGra"></span>Grave</span></td>
+                <td>TMO-380 - 3HSDZAPT1RN299247</td>
+                <td>TRAMO DEL CENTRO, S.A. DE C.V.</td>
+                <td>Sí</td>
+                <td>31 h</td>
+                <td>43 h</td>
+                <td>Offline Ahora Grave</td>
+                <td>2026-04-13 15:03</td>
+              </tr>
+              <tr class="vehicle-row">
+                <td><span class="sevTxt"><span class="sevDot sevMod"></span>Moderado</span></td>
+                <td>006-155 - 472560220011136</td>
+                <td>COORDINACION OAXACA</td>
+                <td>Sí</td>
+                <td>14 h</td>
+                <td>18 h</td>
+                <td>Offline Ahora Moderado</td>
+                <td>2026-04-14 01:40</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="pager"><span class="muted" style="margin-right:auto">Mostrando 1–15 de 41</span><button>‹</button><button class="active">1</button><button>2</button><button>3</button><button>›</button></div>
+        </div>
+      </section>
+
+      <section id="intermitentes" class="panel">
+        <div class="tableWrap">
+          <div class="tableTop">
+            <div class="search">🔎 Buscar en 44 vehículos intermitentes...</div>
+            <div style="display:flex;gap:18px;align-items:center"><span>Ordenado por mayor tiempo acumulado</span><span>⤓ &nbsp; ↻</span></div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Severidad</th>
+                <th>Vehículo</th>
+                <th>Grupo</th>
+                <th>Offline ahora</th>
+                <th>Tiempo offline acumulado</th>
+                <th>Mayor bloque continuo</th>
+                <th>Categoría principal</th>
+                <th>Eventos offline</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="vehicle-row">
+                <td><span class="sevTxt"><span class="sevDot sevCrit"></span>Crítico</span></td>
+                <td>TMO-391 - 3HSDZAPT1RN299071</td>
+                <td>TRAMO DEL CENTRO, S.A. DE C.V.</td>
+                <td>No</td>
+                <td>67 h</td>
+                <td>16 h</td>
+                <td>Intermitente Crítico</td>
+                <td>8</td>
+              </tr>
+              <tr class="vehicle-row">
+                <td><span class="sevTxt"><span class="sevDot sevGra"></span>Grave</span></td>
+                <td>TMO-383 - 3HSDZAPTXRN717580</td>
+                <td>TRAMO DEL CENTRO, S.A. DE C.V.</td>
+                <td>No</td>
+                <td>34 h</td>
+                <td>9 h</td>
+                <td>Intermitente Grave</td>
+                <td>6</td>
+              </tr>
+              <tr class="vehicle-row">
+                <td><span class="sevTxt"><span class="sevDot sevMod"></span>Moderado</span></td>
+                <td>006-140 - 472560220002093</td>
+                <td>COORDINACION CDMX I</td>
+                <td>No</td>
+                <td>15 h</td>
+                <td>4 h</td>
+                <td>Intermitente Moderado</td>
+                <td>5</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="pager"><span class="muted" style="margin-right:auto">Mostrando 1–15 de 44</span><button>‹</button><button class="active">1</button><button>2</button><button>3</button><button>›</button></div>
+        </div>
+      </section>
+
+      <section id="nunca" class="panel">
+        <div class="tableWrap">
+          <div class="tableTop">
+            <div class="search">🔎 Buscar en 12 vehículos nunca reportados...</div>
+            <div>⤓ &nbsp; ↻</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Vehículo</th>
+                <th>Grupo</th>
+                <th>IMEI</th>
+                <th>Estado</th>
+                <th>Última ubicación</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>006-111</td>
+                <td>COORDINACION CDMX I</td>
+                <td>472560240041733</td>
+                <td>Nunca reportado</td>
+                <td>Sin ubicación</td>
+              </tr>
+              <tr>
+                <td>006-198</td>
+                <td>COORDINACION VERACRUZ</td>
+                <td>472560240042198</td>
+                <td>Nunca reportado</td>
+                <td>Sin ubicación</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="heatmap" class="panel heatmapPane" class="panel heatmapPane">
+        <div class="heatmapBox">
+          <div class="heatmapHeader"><span>🗺 Offline Heatmap - Flota seleccionada</span><span style="font-size:20px">×</span></div>
+          <div class="heatmapSearch"><span>🔍 Buscar</span><span>⋮</span></div>
+          <div class="mapLabel" style="top:100px;left:54px">Vicente Guerrero</div>
+          <div class="mapLabel" style="top:122px;left:316px">Saltillo</div>
+          <div class="mapLabel" style="top:180px;left:383px;font-size:26px">ZACATECAS</div>
+          <div class="mapLabel" style="top:420px;left:1020px;font-size:32px">SAN LUIS<br>POTOSÍ</div>
+          <div class="mapLabel" style="top:278px;left:1140px">MATEHUALA</div>
+          <div class="hot" style="left:582px;top:548px;width:58px;height:58px;background:radial-gradient(circle,rgba(255,50,50,.95),rgba(255,235,59,.75),rgba(255,235,59,0));"></div>
+          <div class="hot" style="left:612px;top:530px;width:44px;height:44px;background:radial-gradient(circle,rgba(255,235,59,.95),rgba(255,235,59,.35),rgba(255,235,59,0));"></div>
+          <div class="hot" style="left:860px;top:474px;width:24px;height:24px;background:radial-gradient(circle,rgba(255,235,59,.95),rgba(255,235,59,0));"></div>
+          <div class="hot" style="left:1040px;top:365px;width:18px;height:18px;background:radial-gradient(circle,rgba(255,235,59,.95),rgba(255,235,59,0));"></div>
+          <div class="hot" style="left:1080px;top:70px;width:28px;height:28px;background:radial-gradient(circle,rgba(255,63,63,.95),rgba(255,235,59,.75),rgba(255,235,59,0));"></div>
+          <div class="heatControls"><button class="m">Moderate</button><button class="g">Severe</button><button class="c">Críticas</button></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="detailModal" class="modal">
+    <div class="modalCard" id="detailCard">
+      <div class="close" data-close="detailModal">×</div>
+      <div class="detailGrid">
+        <div class="metaList">
+          <div><strong>🚚 TMO-405 - 3HSDZAPT9SN508692</strong></div>
+          <div><a class="link" id="openChart">Gráfica Offline Vs Hora</a></div>
+          <div><a class="link" id="openVehicleHeat">Mapa de eventos offline</a></div>
+          <div><strong>👥 Grupo Primario</strong> TRAMO DEL CENTRO, S.A. DE C.V.</div>
+          <div><strong>🕒 Mayor bloque continuo:</strong> 58 h</div>
+          <div><strong>⏱ Tiempo offline acumulado:</strong> 91 h</div>
+          <div><strong>📍 Offline ahora:</strong> Sí</div>
+        </div>
+        <div></div>
+        <div>
+          <div class="detailSearch">Buscar en 137 registros...</div></div>
+      </div>
+      <table class="miniTable">
+        <thead><tr><th>Fecha</th><th>Duración</th><th>Severidad</th><th>Dirección</th></tr></thead>
+        <tbody>
+          <tr><td>2026-04-10T08:09:39 / 2026-04-12T18:03:20</td><td>57 h 54 m</td><td><span class="sevTxt"><span class="sevDot sevCrit"></span>crítico</span></td><td><a class="link" target="_blank" href="https://maps.google.com/?q=Aguascalientes">AGS - Carretera León - Aguascalientes</a></td></tr>
+          <tr><td>2026-04-13T15:03:04 / 2026-04-14T22:13:00</td><td>31 h 10 m</td><td><span class="sevTxt"><span class="sevDot sevGra"></span>grave</span></td><td><a class="link" target="_blank" href="https://maps.google.com/?q=Matehuala">SLP - MTY - Carretera San Luis Potosí</a></td></tr>
+          <tr><td>2026-04-10T08:07:02 / 2026-04-10T21:42:00</td><td>13 h 35 m</td><td><span class="sevTxt"><span class="sevDot sevMod"></span>moderado</span></td><td><a class="link" target="_blank" href="https://maps.google.com/?q=Zacatecas">ZAC - Libramiento Zacatecas</a></td></tr>
+          <tr><td>2026-04-11T09:14:44 / 2026-04-12T14:52:00</td><td>29 h 37 m</td><td><span class="sevTxt"><span class="sevDot sevGra"></span>grave</span></td><td><a class="link" target="_blank" href="https://maps.google.com/?q=San+Luis+Potosi">SLP - Tramo Villa Hidalgo</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="chartModal" class="modal">
+    <div class="modalCard lightMode" id="chartCard">
+      <div class="close" data-close="chartModal">×</div>
+      <div class="chartTitle">06 Abril, 2026, 00:00:00 - 14 Abril, 2026, 23:59:59 | America/Bogota</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div><div style="font-size:18px;color:inherit;margin-bottom:6px">Análisis</div><div style="font-size:24px;font-weight:bold">Estado Online / Offline por Vehículo</div></div>
+        <div style="font-size:17px;color:#0897b7;font-weight:bold">Qualitrack</div>
+      </div>
+      <div class="fakeChart" id="stateChart">
+        <div class="labelOnline">Online</div>
+        <div class="labelOffline">Offline</div>
+        <div class="axisLeft" style="top:48px">1</div><div class="gridline" style="top:58px"></div>
+        <div class="axisLeft" style="bottom:58px">0</div><div class="gridline" style="bottom:58px"></div>
+        <div class="stateLine">
+          <svg viewBox="0 0 1000 320" preserveAspectRatio="none">
+            <polyline fill="none" stroke="#2a84da" stroke-width="6" points="0,40 100,40 100,240 220,240 220,120 360,120 360,240 500,240 500,70 680,70 680,240 820,240 820,150 930,150 930,40 1000,40" />
+            <polyline fill="none" stroke="#ef5350" stroke-width="2" opacity="0.25" points="0,40 100,40 100,240 220,240 220,120 360,120 360,240 500,240 500,70 680,70 680,240 820,240 820,150 930,150 930,40 1000,40" />
+          </svg>
+        </div>
+        <div class="axisBottom" style="left:9%">06 Abr 00:00</div>
+        <div class="axisBottom" style="left:24%">07 Abr 12:00</div>
+        <div class="axisBottom" style="left:40%">09 Abr 00:00</div>
+        <div class="axisBottom" style="left:56%">10 Abr 12:00</div>
+        <div class="axisBottom" style="left:72%">12 Abr 00:00</div>
+        <div class="axisBottom" style="left:88%">13 Abr 12:00</div>
+      </div>
+      <div class="miniBrush" id="miniBrush"><div class="brush1"></div><div class="brush2"></div></div>
+    </div>
+  </div>
+
+  <div id="vehicleHeatModal" class="modal">
+    <div class="modalCard" style="padding:0;background:#101010;width:min(1400px,96vw);height:min(760px,94vh)">
+      <div class="heatmapBox" style="height:100%;border:none">
+        <div class="heatmapHeader"><span>🗺 TMO-405 - 3HSDZAPT9SN508692</span><span class="close" data-close="vehicleHeatModal" style="position:static;color:#fff">×</span></div>
+        <div class="heatmapSearch"><span>🔍 Buscar</span><span>⋮</span></div>
+        <div class="mapLabel" style="top:100px;left:54px">Vicente Guerrero</div>
+        <div class="mapLabel" style="top:122px;left:316px">Saltillo</div>
+        <div class="mapLabel" style="top:180px;left:383px;font-size:26px">ZACATECAS</div>
+        <div class="mapLabel" style="top:420px;left:1020px;font-size:32px">SAN LUIS<br>POTOSÍ</div>
+        <div class="mapLabel" style="top:278px;left:1140px">MATEHUALA</div>
+        <div class="hot" style="left:582px;top:548px;width:58px;height:58px;background:radial-gradient(circle,rgba(255,50,50,.95),rgba(255,235,59,.75),rgba(255,235,59,0));"></div>
+        <div class="hot" style="left:612px;top:530px;width:44px;height:44px;background:radial-gradient(circle,rgba(255,235,59,.95),rgba(255,235,59,.35),rgba(255,235,59,0));"></div>
+        <div class="hot" style="left:860px;top:474px;width:24px;height:24px;background:radial-gradient(circle,rgba(255,235,59,.95),rgba(255,235,59,0));"></div>
+        <div class="hot" style="left:1040px;top:365px;width:18px;height:18px;background:radial-gradient(circle,rgba(255,235,59,.95),rgba(255,235,59,0));"></div>
+        <div class="hot" style="left:1080px;top:70px;width:28px;height:28px;background:radial-gradient(circle,rgba(255,63,63,.95),rgba(255,235,59,.75),rgba(255,235,59,0));"></div>
+        <div class="heatControls"><button class="m">Moderate</button><button class="g">Severe</button><button class="c">Críticas</button></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const tabs=document.querySelectorAll('.tab');
+  const panels=document.querySelectorAll('.panel');
+  tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remove('active'));panels.forEach(x=>x.classList.remove('active'));t.classList.add('active');document.getElementById(t.dataset.tab).classList.add('active')}));
+
+  const detailModal=document.getElementById('detailModal');
+  document.querySelectorAll('.vehicle-row').forEach(r=>r.addEventListener('click',()=>detailModal.classList.add('active')));
+  document.getElementById('openChart').addEventListener('click',()=>document.getElementById('chartModal').classList.add('active'));
+  document.getElementById('openVehicleHeat').addEventListener('click',()=>document.getElementById('vehicleHeatModal').classList.add('active'));
+  document.querySelectorAll('[data-close]').forEach(x=>x.addEventListener('click',()=>document.getElementById(x.dataset.close).classList.remove('active')));
+  document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('active')}));
+
+  const themeToggle=document.getElementById('themeToggle');
+  themeToggle.addEventListener('click',()=>{
+    document.body.classList.toggle('light');
+    const light=document.body.classList.contains('light');
+    document.getElementById('detailCard').classList.toggle('lightMode',light);
+    document.getElementById('chartCard').classList.toggle('lightMode',light);
+    document.getElementById('stateChart').classList.toggle('dark',!light);
+    document.getElementById('miniBrush').classList.toggle('dark',!light);
+  });
+  document.getElementById('stateChart').classList.add('dark');
+  document.getElementById('miniBrush').classList.add('dark');
+</script>
+</body>
+</html>
